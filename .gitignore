@@ -1,0 +1,36 @@
+## .NET Core / Visual Studio
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+artifacts/
+
+# Build logs
+[Ll]og/
+[Ll]ogs/
+*.log
+*.binlog
+
+# App specific
+AppPackages/
+BundleArtifacts/
+_pkginfo.txt
+
+# Temp files
+*.tmp
+*.bak
+*.swp
+*~.nib
+
+# IDE
+.idea/
+.vscode/
+
+# Ignore quarantine test outputs if any
+quarantine-index.json
+history.json

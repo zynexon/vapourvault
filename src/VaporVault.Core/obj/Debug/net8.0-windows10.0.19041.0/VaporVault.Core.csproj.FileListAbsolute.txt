@@ -10,3 +10,4 @@ d:\vapour vault\src\VaporVault.Core\obj\Debug\net8.0-windows10.0.19041.0\VaporVa
 d:\vapour vault\src\VaporVault.Core\obj\Debug\net8.0-windows10.0.19041.0\refint\VaporVault.Core.dll
 d:\vapour vault\src\VaporVault.Core\obj\Debug\net8.0-windows10.0.19041.0\VaporVault.Core.pdb
 d:\vapour vault\src\VaporVault.Core\obj\Debug\net8.0-windows10.0.19041.0\ref\VaporVault.Core.dll
+d:\vapour vault\src\VaporVault.Core\obj\Debug\net8.0-windows10.0.19041.0\VaporVault.Core.sourcelink.json

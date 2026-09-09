@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("VaporVault.Core")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+85f010ed82bfa39d1eab2fa4acfe69bd0a95ced3")]
 [assembly: System.Reflection.AssemblyProductAttribute("VaporVault.Core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("VaporVault.Core")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
