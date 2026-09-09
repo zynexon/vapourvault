@@ -1,12 +1,5 @@
-﻿using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
-
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
+using Microsoft.UI.Xaml;
+using VaporVault_App.Services;
 
 namespace VaporVault_App;
 
@@ -16,10 +9,10 @@ namespace VaporVault_App;
 public partial class App : Application
 {
     private Window? _window;
-    
+    private NotificationService? _notificationService;
+
     /// <summary>
-    /// Initializes the singleton application object.  This is the first line of authored code
-    /// executed, and as such is the logical equivalent of main() or WinMain().
+    /// Initializes the singleton application object.
     /// </summary>
     public App()
     {
@@ -29,10 +22,15 @@ public partial class App : Application
     /// <summary>
     /// Invoked when the application is launched.
     /// </summary>
-    /// <param name="args">Details about the launch request and process.</param>
     protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
     {
         _window = new MainWindow();
         _window.Activate();
+
+        // Start the background notification + expiry service.
+        // Processes expired entries on startup, sends Day-25 toasts,
+        // and rechecks every 6 hours while the app is running.
+        _notificationService = new NotificationService();
+        _notificationService.Initialize();
     }
 }

@@ -17,6 +17,25 @@ public class RestoreBatGenerator
     /// <param name="manifest">The quarantine manifest with source information.</param>
     public void GenerateRestoreBat(string quarantineFolderPath, QuarantineManifest manifest)
     {
+        var content = BuildBatContent(quarantineFolderPath, manifest);
+        var batPath = Path.Combine(quarantineFolderPath, "restore.bat");
+        File.WriteAllText(batPath, content, Encoding.ASCII);
+    }
+
+    /// <summary>
+    /// Generates the content of a restore.bat file without writing it to disk.
+    /// Useful for testing.
+    /// </summary>
+    public string GenerateRestoreBatContent(string quarantineFolderPath, QuarantineManifest manifest)
+    {
+        return BuildBatContent(quarantineFolderPath, manifest);
+    }
+
+    /// <summary>
+    /// Shared implementation — builds the full restore.bat content string.
+    /// </summary>
+    private static string BuildBatContent(string quarantineFolderPath, QuarantineManifest manifest)
+    {
         var sb = new StringBuilder();
         sb.AppendLine("@echo off");
         sb.AppendLine("REM ============================================================");
@@ -79,30 +98,6 @@ public class RestoreBatGenerator
         sb.AppendLine("echo.");
         sb.AppendLine("pause");
 
-        var batPath = Path.Combine(quarantineFolderPath, "restore.bat");
-        File.WriteAllText(batPath, sb.ToString(), Encoding.ASCII);
-    }
-
-    /// <summary>
-    /// Generates the content of a restore.bat file without writing it to disk.
-    /// Useful for testing.
-    /// </summary>
-    public string GenerateRestoreBatContent(string quarantineFolderPath, QuarantineManifest manifest)
-    {
-        // Use a temp approach: generate to a temp file, read, and delete
-        // Or just duplicate the logic... Let's use a cleaner approach
-        var sb = new StringBuilder();
-        sb.AppendLine("@echo off");
-        sb.AppendLine($"REM VaporVault Restore Script for: {manifest.AppName}");
-        sb.AppendLine($"REM Quarantined on: {manifest.QuarantinedAt:yyyy-MM-dd HH:mm:ss}");
-
-        foreach (var source in manifest.Sources)
-        {
-            var quarantineSubPath = Path.Combine(quarantineFolderPath, source.QuarantineSubDir);
-            sb.AppendLine($"robocopy \"{quarantineSubPath}\" \"{source.OriginalPath}\" /MOVE /E /NP /NJH /NJS");
-        }
-
-        sb.AppendLine("pause");
         return sb.ToString();
     }
 }

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 using VaporVault.Core.Models;
 
 namespace VaporVault.Core.Quarantine;
@@ -10,6 +11,10 @@ namespace VaporVault.Core.Quarantine;
 /// </summary>
 public class RegistryExporter
 {
+    // Allow only safe characters in app names passed to reg.exe
+    // Letters, digits, spaces, dots, dashes, underscores, plus signs
+    private static readonly Regex SafeAppNamePattern = new(@"^[\w\s.\-+()]+$", RegexOptions.Compiled);
+
     /// <summary>
     /// Exports the HKCU\Software\[AppName] registry key to a .reg file
     /// inside the quarantine folder.
@@ -19,7 +24,12 @@ public class RegistryExporter
     /// <returns>Registry export info if successful, null if the key doesn't exist or export failed.</returns>
     public RegistryExportInfo? ExportRegistryKey(string appName, string quarantineFolderPath)
     {
-        var keyPath = $@"HKCU\Software\{appName}";
+        // Sanitize app name to prevent command injection via reg.exe arguments
+        var sanitizedName = SanitizeAppName(appName);
+        if (string.IsNullOrEmpty(sanitizedName))
+            return null;
+
+        var keyPath = $@"HKCU\Software\{sanitizedName}";
         var fileName = "registry_backup.reg";
         var fullExportPath = Path.Combine(quarantineFolderPath, fileName);
 
@@ -63,6 +73,30 @@ public class RegistryExporter
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// Sanitizes the app name to prevent command injection when passed to reg.exe.
+    /// Strips any characters that are not alphanumeric, spaces, dots, dashes,
+    /// underscores, plus signs, or parentheses.
+    /// Returns null if the result is empty or the original contains suspicious patterns.
+    /// </summary>
+    internal static string? SanitizeAppName(string appName)
+    {
+        if (string.IsNullOrWhiteSpace(appName))
+            return null;
+
+        // Reject names containing shell metacharacters that could escape the quoted argument
+        if (appName.Contains('"') || appName.Contains('`') || appName.Contains('$') ||
+            appName.Contains('|') || appName.Contains('&') || appName.Contains('>') ||
+            appName.Contains('<') || appName.Contains(';') || appName.Contains('%'))
+        {
+            return null;
+        }
+
+        // Strip any remaining characters outside the safe set
+        var sanitized = Regex.Replace(appName, @"[^\w\s.\-+()]", "").Trim();
+        return string.IsNullOrWhiteSpace(sanitized) ? null : sanitized;
     }
 
     /// <summary>
