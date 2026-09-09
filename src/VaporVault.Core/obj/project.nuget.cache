@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "5Nf7mwcGoTU=",
+  "success": true,
+  "projectFilePath": "d:\\vapour vault\\src\\VaporVault.Core\\VaporVault.Core.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Admin\\.nuget\\packages\\zstdsharp.port\\0.8.1\\zstdsharp.port.0.8.1.nupkg.sha512",
+    "C:\\Users\\Admin\\.nuget\\packages\\microsoft.windows.sdk.net.ref\\10.0.19041.56\\microsoft.windows.sdk.net.ref.10.0.19041.56.nupkg.sha512"
+  ],
+  "logs": []
+}

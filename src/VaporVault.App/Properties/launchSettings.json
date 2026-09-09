@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "VaporVault.App (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "VaporVault.App (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

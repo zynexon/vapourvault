@@ -1,0 +1,12 @@
+d:\vapour vault\src\VaporVault.Core\bin\Debug\net8.0-windows10.0.19041.0\VaporVault.Core.deps.json
+d:\vapour vault\src\VaporVault.Core\bin\Debug\net8.0-windows10.0.19041.0\VaporVault.Core.dll
+d:\vapour vault\src\VaporVault.Core\bin\Debug\net8.0-windows10.0.19041.0\VaporVault.Core.pdb
+d:\vapour vault\src\VaporVault.Core\obj\Debug\net8.0-windows10.0.19041.0\VaporVault.Core.csproj.AssemblyReference.cache
+d:\vapour vault\src\VaporVault.Core\obj\Debug\net8.0-windows10.0.19041.0\VaporVault.Core.GeneratedMSBuildEditorConfig.editorconfig
+d:\vapour vault\src\VaporVault.Core\obj\Debug\net8.0-windows10.0.19041.0\VaporVault.Core.AssemblyInfoInputs.cache
+d:\vapour vault\src\VaporVault.Core\obj\Debug\net8.0-windows10.0.19041.0\VaporVault.Core.AssemblyInfo.cs
+d:\vapour vault\src\VaporVault.Core\obj\Debug\net8.0-windows10.0.19041.0\VaporVault.Core.csproj.CoreCompileInputs.cache
+d:\vapour vault\src\VaporVault.Core\obj\Debug\net8.0-windows10.0.19041.0\VaporVault.Core.dll
+d:\vapour vault\src\VaporVault.Core\obj\Debug\net8.0-windows10.0.19041.0\refint\VaporVault.Core.dll
+d:\vapour vault\src\VaporVault.Core\obj\Debug\net8.0-windows10.0.19041.0\VaporVault.Core.pdb
+d:\vapour vault\src\VaporVault.Core\obj\Debug\net8.0-windows10.0.19041.0\ref\VaporVault.Core.dll
