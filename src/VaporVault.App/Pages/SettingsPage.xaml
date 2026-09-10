@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="VaporVault_App.Pages.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Loaded="Page_Loaded">
+
+    <ScrollViewer Padding="32,24">
+        <StackPanel MaxWidth="800" Spacing="8">
+
+            <!-- Page header -->
+            <TextBlock
+                Text="Settings"
+                Style="{StaticResource TitleTextBlockStyle}"
+                Margin="0,0,0,16" />
+
+            <!-- Live Interception section -->
+            <TextBlock
+                Text="Live Interception"
+                Style="{StaticResource SubtitleTextBlockStyle}"
+                Margin="0,0,0,4" />
+
+            <StackPanel
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                CornerRadius="8"
+                Padding="16"
+                Spacing="16"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1">
+
+                <!-- Live interception toggle -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Spacing="2">
+                        <TextBlock Text="Monitor for uninstalls" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                        <TextBlock
+                            Text="Automatically detect when apps are uninstalled and offer to quarantine their leftovers."
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                    <ToggleSwitch
+                        x:Name="LiveInterceptionToggle"
+                        Grid.Column="1"
+                        Toggled="LiveInterceptionToggle_Toggled"
+                        VerticalAlignment="Center" />
+                </Grid>
+
+                <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+                <!-- Close to tray toggle -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Spacing="2">
+                        <TextBlock Text="Close to tray" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                        <TextBlock
+                            Text="Minimize to the system tray when the window is closed, instead of fully exiting. Only applies when live interception is enabled."
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                    <ToggleSwitch
+                        x:Name="CloseToTrayToggle"
+                        Grid.Column="1"
+                        Toggled="CloseToTrayToggle_Toggled"
+                        VerticalAlignment="Center" />
+                </Grid>
+            </StackPanel>
+
+            <!-- Startup section -->
+            <TextBlock
+                Text="Startup"
+                Style="{StaticResource SubtitleTextBlockStyle}"
+                Margin="0,16,0,4" />
+
+            <StackPanel
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                CornerRadius="8"
+                Padding="16"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1">
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Spacing="2">
+                        <TextBlock Text="Run at startup" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                        <TextBlock
+                            Text="Start VaporVault automatically when you sign in to Windows. The app will start minimized to the system tray."
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                    <ToggleSwitch
+                        x:Name="RunAtStartupToggle"
+                        Grid.Column="1"
+                        Toggled="RunAtStartupToggle_Toggled"
+                        VerticalAlignment="Center" />
+                </Grid>
+            </StackPanel>
+
+            <!-- About section -->
+            <TextBlock
+                Text="About"
+                Style="{StaticResource SubtitleTextBlockStyle}"
+                Margin="0,16,0,4" />
+
+            <StackPanel
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                CornerRadius="8"
+                Padding="16"
+                Spacing="4"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1">
+
+                <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}">
+                    <Run Text="VaporVault" />
+                    <Run Text="v2.0" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </TextBlock>
+                <TextBlock
+                    Text="Automatically detects and quarantines leftover files from uninstalled applications."
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    TextWrapping="Wrap" />
+            </StackPanel>
+
+        </StackPanel>
+    </ScrollViewer>
+</Page>

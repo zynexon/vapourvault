@@ -1,5 +1,5 @@
-using Microsoft.Windows.AppNotifications;
-using Microsoft.Windows.AppNotifications.Builder;
+using Windows.Data.Xml.Dom;
+using Windows.UI.Notifications;
 using VaporVault.Core.Data;
 using VaporVault.Core.Lifecycle;
 using VaporVault.Core.Models;
@@ -8,16 +8,32 @@ namespace VaporVault_App.Services;
 
 /// <summary>
 /// Handles toast notifications and background expiry processing.
+/// 
+/// Uses the raw Windows.UI.Notifications WinRT API for toast delivery.
+/// This works in unpackaged WinUI 3 apps without any COM registration or
+/// additional NuGet packages. The app identity is provided by the
+/// Windows App SDK's winapp tooling.
+/// 
 /// - Fires Day-25 "ready to delete?" toast notifications
+/// - Fires uninstall-detected toast notifications (v2)
 /// - Auto-deletes expired entries at Day 30
 /// - Runs on app startup + periodic timer
 /// </summary>
 public class NotificationService
 {
+    /// <summary>
+    /// Raised when the user clicks a native toast notification.
+    /// </summary>
+    public static event Action? ToastClicked;
+
     private readonly ExpiryChecker _expiryChecker;
     private readonly HistoryLogger _historyLogger;
     private readonly QuarantineIndex _quarantineIndex;
     private System.Timers.Timer? _expiryTimer;
+
+    // App User Model ID — required for toast notifications in unpackaged apps.
+    // This must match the value registered by the Windows App SDK build tooling.
+    private const string AppId = "VaporVault";
 
     public NotificationService()
     {
@@ -32,6 +48,26 @@ public class NotificationService
     /// </summary>
     public void Initialize()
     {
+        try
+        {
+            // Register AUMID for unpackaged toast notifications
+            var registryKey = $@"Software\Classes\AppUserModelId\{AppId}";
+            using var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(registryKey);
+            key.SetValue("DisplayName", "VaporVault");
+            
+            var iconPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico"));
+            if (System.IO.File.Exists(iconPath))
+            {
+                key.SetValue("IconUri", iconPath);
+            }
+            
+            App.Log("AUMID registered successfully for Toast Notifications.");
+        }
+        catch (Exception ex)
+        {
+            App.Log($"Failed to register AUMID: {ex.Message}");
+        }
+
         // Process expired entries immediately on startup
         ProcessExpiredAndNotify();
 
@@ -73,20 +109,87 @@ public class NotificationService
     {
         try
         {
-            var builder = new AppNotificationBuilder()
-                .AddText($"'{entry.AppName}' quarantine expires soon")
-                .AddText($"{entry.DaysRemaining} day(s) remaining before permanent deletion.")
-                .AddText("Open VaporVault to revive it, or let it auto-delete.");
-
-            var notification = builder.BuildNotification();
-            AppNotificationManager.Default.Show(notification);
+            ShowToast(
+                $"'{entry.AppName}' quarantine expires soon",
+                $"{entry.DaysRemaining} day(s) remaining before permanent deletion.\nOpen VaporVault to revive it, or let it auto-delete.");
         }
         catch (Exception ex)
         {
-            // Toast may fail on systems without notification support — non-fatal
             System.Diagnostics.Debug.WriteLine($"Toast notification failed: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// Sends a toast notification when an app uninstall is detected and leftovers are found.
+    /// </summary>
+    public static void SendUninstallDetectedToast(string appName, long leftoverSizeBytes, int folderCount)
+    {
+        try
+        {
+            var sizeStr = FormatSize(leftoverSizeBytes);
+            var folderText = folderCount == 1 ? "1 folder" : $"{folderCount} folders";
+
+            App.Log($"SendUninstallDetectedToast: Sending toast for '{appName}' ({sizeStr}, {folderText})...");
+
+            ShowToast(
+                $"{appName} uninstalled — {sizeStr} of leftovers found",
+                $"{folderText} left behind. Open VaporVault to quarantine and reclaim space.");
+
+            App.Log($"SendUninstallDetectedToast: Toast shown for '{appName}'.");
+        }
+        catch (Exception ex)
+        {
+            App.Log($"SendUninstallDetectedToast FAILED for '{appName}': {ex.Message}\n{ex.StackTrace}");
+        }
+    }
+
+    /// <summary>
+    /// Shows a Windows toast notification using the raw WinRT API.
+    /// Works in unpackaged apps without COM registration.
+    /// </summary>
+    private static void ShowToast(string title, string body)
+    {
+        // Build the toast XML manually using the standard toast template
+        var toastXml = new XmlDocument();
+        toastXml.LoadXml($"""
+            <toast>
+                <visual>
+                    <binding template="ToastGeneric">
+                        <text>{EscapeXml(title)}</text>
+                        <text>{EscapeXml(body)}</text>
+                    </binding>
+                </visual>
+            </toast>
+            """);
+
+        var toast = new ToastNotification(toastXml);
+        
+        toast.Activated += (sender, args) => ToastClicked?.Invoke();
+
+        // Use the explicit App User Model ID that we registered in Initialize()
+        try
+        {
+            ToastNotificationManager.CreateToastNotifier(AppId).Show(toast);
+        }
+        catch (Exception ex)
+        {
+            App.Log($"ShowToast failed: {ex.Message}");
+        }
+    }
+
+    private static string EscapeXml(string text) =>
+        text.Replace("&", "&amp;")
+            .Replace("<", "&lt;")
+            .Replace(">", "&gt;")
+            .Replace("\"", "&quot;");
+
+    private static string FormatSize(long bytes) => bytes switch
+    {
+        < 1024 => $"{bytes} B",
+        < 1024 * 1024 => $"{bytes / 1024.0:F1} KB",
+        < 1024L * 1024 * 1024 => $"{bytes / (1024.0 * 1024):F1} MB",
+        _ => $"{bytes / (1024.0 * 1024 * 1024):F1} GB"
+    };
 
     /// <summary>
     /// Stops the background timer.

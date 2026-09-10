@@ -72,4 +72,103 @@ public class OrphanScanner
     {
         return Task.Run(() => Scan(), cancellationToken);
     }
+
+    /// <summary>
+    /// Performs a targeted scan for leftovers of a specific app that was just uninstalled.
+    /// Much faster than a full scan — only checks folders matching the given app name.
+    ///
+    /// This does NOT read the registry (the app is already gone from there).
+    /// Instead, it enumerates AppData folders and checks which ones match the
+    /// given display name using the same fuzzy-matching logic as the full scan.
+    /// </summary>
+    /// <param name="appDisplayName">The display name of the just-uninstalled app (from the old snapshot).</param>
+    /// <returns>Orphaned app entries matching this specific app, or empty if no leftovers found.</returns>
+    public IReadOnlyList<OrphanedApp> ScanForApp(string appDisplayName)
+    {
+        if (string.IsNullOrWhiteSpace(appDisplayName))
+            return [];
+
+        // Enumerate all AppData folders (fast — just top-level directory listing)
+        var folders = _folderEnumerator.EnumerateFolders();
+
+        // Tokenize the app name for matching
+        var appNameLower = appDisplayName.ToLowerInvariant();
+        var appTokens = RegistryReader.TokenizeName(appDisplayName);
+
+        // Find folders that match this app name
+        var matchingFolders = new List<AppDataFolder>();
+
+        foreach (var folder in folders)
+        {
+            if (OrphanMatcher.IsExcluded(folder.Name))
+                continue;
+            if (folder.Name.StartsWith('.'))
+                continue;
+
+            if (FolderMatchesApp(folder.Name, appNameLower, appTokens))
+            {
+                matchingFolders.Add(folder);
+            }
+        }
+
+        if (matchingFolders.Count == 0)
+            return [];
+
+        // Group into a single OrphanedApp
+        return
+        [
+            new OrphanedApp
+            {
+                AppName = appDisplayName,
+                Folders = matchingFolders
+            }
+        ];
+    }
+
+    /// <summary>
+    /// Async wrapper for ScanForApp().
+    /// </summary>
+    public Task<IReadOnlyList<OrphanedApp>> ScanForAppAsync(string appDisplayName,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.Run(() => ScanForApp(appDisplayName), cancellationToken);
+    }
+
+    /// <summary>
+    /// Checks if a folder name matches a specific app's display name.
+    /// Uses the same multi-tier matching strategy as OrphanMatcher, but in reverse:
+    /// instead of "does any installed app own this folder?", we ask
+    /// "does this folder belong to this specific uninstalled app?".
+    /// </summary>
+    private static bool FolderMatchesApp(string folderName, string appNameLower,
+        IReadOnlyList<string> appTokens)
+    {
+        var folderLower = folderName.ToLowerInvariant();
+
+        // Tier 1: Exact match
+        if (folderLower == appNameLower)
+            return true;
+
+        // Tier 2: Prefix match (either direction)
+        if (folderLower.StartsWith(appNameLower) || appNameLower.StartsWith(folderLower))
+            return true;
+
+        // Tier 3: Token overlap — folder contains a significant token from the app name
+        if (appTokens.Count > 0)
+        {
+            var folderTokens = folderLower
+                .Split([' ', '-', '_', '.'], StringSplitOptions.RemoveEmptyEntries)
+                .Where(t => t.Length >= 3)
+                .ToList();
+
+            var appTokenSet = new HashSet<string>(appTokens, StringComparer.OrdinalIgnoreCase);
+            foreach (var token in folderTokens)
+            {
+                if (appTokenSet.Contains(token))
+                    return true;
+            }
+        }
+
+        return false;
+    }
 }
