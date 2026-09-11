@@ -51,12 +51,28 @@ public sealed partial class MainWindow : Window
     /// </summary>
     public void ShowAndBringToFront()
     {
-        this.Activate();
-        AppWindow.Show(activateWindow: true);
+        try
+        {
+            System.Diagnostics.Debug.WriteLine("MainWindow: ShowAndBringToFront called");
 
-        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        ShowWindow(hwnd, 9); // SW_RESTORE
-        SetForegroundWindow(hwnd);
+            // First, get the native handle
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            System.Diagnostics.Debug.WriteLine($"MainWindow: hwnd = {hwnd}");
+
+            // Use Win32 to restore and bring to front (more reliable than WinUI APIs for hidden windows)
+            ShowWindow(hwnd, 9); // SW_RESTORE
+            SetForegroundWindow(hwnd);
+
+            // Also use WinUI APIs as backup
+            AppWindow.Show(activateWindow: true);
+            this.Activate();
+
+            System.Diagnostics.Debug.WriteLine("MainWindow: ShowAndBringToFront completed");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"MainWindow: ShowAndBringToFront FAILED: {ex.Message}");
+        }
     }
 
     private void TitleBar_PaneToggleRequested(TitleBar sender, object args)

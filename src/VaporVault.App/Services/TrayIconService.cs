@@ -41,7 +41,11 @@ public sealed class TrayIconService : IDisposable
         var contextMenu = new MenuFlyout();
 
         var openItem = new MenuFlyoutItem { Text = "Open VaporVault" };
-        openItem.Click += (_, _) => OpenRequested?.Invoke();
+        openItem.Click += (_, _) =>
+        {
+            System.Diagnostics.Debug.WriteLine("TrayIcon: Open VaporVault clicked");
+            OpenRequested?.Invoke();
+        };
         contextMenu.Items.Add(openItem);
 
         contextMenu.Items.Add(new MenuFlyoutSeparator());
@@ -67,16 +71,27 @@ public sealed class TrayIconService : IDisposable
         contextMenu.Items.Add(new MenuFlyoutSeparator());
 
         var exitItem = new MenuFlyoutItem { Text = "Exit" };
-        exitItem.Click += (_, _) => ExitRequested?.Invoke();
+        exitItem.Click += (_, _) =>
+        {
+            System.Diagnostics.Debug.WriteLine("TrayIcon: Exit clicked");
+            ExitRequested?.Invoke();
+        };
         contextMenu.Items.Add(exitItem);
+
+        var openCommand = new RelayCommand(() =>
+        {
+            System.Diagnostics.Debug.WriteLine("TrayIcon: Left/double click → OpenRequested");
+            OpenRequested?.Invoke();
+        });
 
         _taskbarIcon = new TaskbarIcon
         {
             ToolTipText = "VaporVault — Monitoring for uninstalls",
-            ContextMenuMode = ContextMenuMode.PopupMenu,
+            ContextMenuMode = ContextMenuMode.SecondWindow,
             ContextFlyout = contextMenu,
             NoLeftClickDelay = true,
-            DoubleClickCommand = new RelayCommand(() => OpenRequested?.Invoke()),
+            LeftClickCommand = openCommand,
+            DoubleClickCommand = openCommand,
             IconSource = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri("ms-appx:///Assets/AppIcon.ico"))
         };
 

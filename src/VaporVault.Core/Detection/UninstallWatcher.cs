@@ -220,9 +220,28 @@ public sealed class UninstallWatcher : IDisposable
         System.Diagnostics.Debug.WriteLine($"UninstallWatcher: {label} watcher thread exiting.");
     }
 
-    // ── Private: diff logic ──
+    // ── Internal: diff logic (exposed for testing) ──
 
-    private void ProcessChange()
+    /// <summary>
+    /// Pure diff: returns DisplayNames that are in oldSnapshot but missing from newSnapshot.
+    /// No side effects — safe to call from tests without threads or registry handles.
+    /// </summary>
+    internal static List<string> DiffSnapshots(
+        Dictionary<string, string> oldSnapshot,
+        Dictionary<string, string> newSnapshot)
+    {
+        return oldSnapshot
+            .Where(kvp => !newSnapshot.ContainsKey(kvp.Key))
+            .Select(kvp => kvp.Value)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Re-reads the registry via IRegistryReader, diffs against the cached snapshot,
+    /// and feeds any removals into the debounce pipeline.
+    /// Made internal (was private) so tests can trigger diff+debounce without real watcher threads.
+    /// </summary>
+    internal void ProcessChange()
     {
         // Build new snapshot from current registry state
         var currentApps = _registryReader.GetInstalledApps();
@@ -238,10 +257,7 @@ public sealed class UninstallWatcher : IDisposable
         List<string> removedNames;
         lock (_snapshotLock)
         {
-            removedNames = _snapshot
-                .Where(kvp => !newSnapshot.ContainsKey(kvp.Key))
-                .Select(kvp => kvp.Value) // DisplayName from the OLD snapshot (it's gone from registry)
-                .ToList();
+            removedNames = DiffSnapshots(_snapshot, newSnapshot);
 
             // Update the snapshot
             _snapshot = newSnapshot;
@@ -309,7 +325,7 @@ public sealed class UninstallWatcher : IDisposable
         }
     }
 
-    // ── Private: snapshot management ──
+    // ── Snapshot management ──
 
     private void RefreshSnapshot()
     {
@@ -324,6 +340,18 @@ public sealed class UninstallWatcher : IDisposable
         lock (_snapshotLock)
         {
             _snapshot = snapshot;
+        }
+    }
+
+    /// <summary>
+    /// Sets the internal snapshot directly — for testing only.
+    /// Allows tests to establish baseline state without calling Start() (which opens native handles).
+    /// </summary>
+    internal void SetSnapshotForTesting(Dictionary<string, string> snapshot)
+    {
+        lock (_snapshotLock)
+        {
+            _snapshot = new Dictionary<string, string>(snapshot, StringComparer.OrdinalIgnoreCase);
         }
     }
 

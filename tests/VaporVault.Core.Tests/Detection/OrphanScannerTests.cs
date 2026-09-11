@@ -127,4 +127,109 @@ public class OrphanScannerTests
         Assert.NotNull(result);
         Assert.Empty(result.OrphanedApps);
     }
+
+    #region ScanForApp — targeted scan tests
+
+    [Fact]
+    public void ScanForApp_ReturnsOnlyMatchingFolders()
+    {
+        // Arrange: folders for Spotify, Chrome, and Discord
+        var mockRegistry = new Mock<IRegistryReader>();
+        var mockEnumerator = new Mock<IAppDataFolderEnumerator>();
+        var mockMatcher = new Mock<IOrphanMatcher>();
+
+        var folders = new List<AppDataFolder>
+        {
+            new()
+            {
+                FullPath = @"C:\Users\Test\AppData\Local\Spotify",
+                Name = "Spotify",
+                Location = AppDataLocation.LocalAppData,
+                SizeBytes = 500_000,
+                LastWriteTimeUtc = DateTime.UtcNow
+            },
+            new()
+            {
+                FullPath = @"C:\Users\Test\AppData\Local\Google Chrome",
+                Name = "Google Chrome",
+                Location = AppDataLocation.LocalAppData,
+                SizeBytes = 1_000_000,
+                LastWriteTimeUtc = DateTime.UtcNow
+            },
+            new()
+            {
+                FullPath = @"C:\Users\Test\AppData\Roaming\Discord",
+                Name = "Discord",
+                Location = AppDataLocation.RoamingAppData,
+                SizeBytes = 2_000_000,
+                LastWriteTimeUtc = DateTime.UtcNow
+            }
+        };
+
+        mockEnumerator.Setup(e => e.EnumerateFolders()).Returns(folders);
+
+        var scanner = new OrphanScanner(mockRegistry.Object, mockEnumerator.Object, mockMatcher.Object);
+
+        // Act
+        var result = scanner.ScanForApp("Spotify");
+
+        // Assert: only Spotify folder returned
+        Assert.Single(result);
+        Assert.Equal("Spotify", result[0].AppName);
+        Assert.Single(result[0].Folders);
+        Assert.Equal("Spotify", result[0].Folders[0].Name);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ScanForApp_EmptyOrNullName_ReturnsEmpty(string? appName)
+    {
+        // Arrange
+        var mockRegistry = new Mock<IRegistryReader>();
+        var mockEnumerator = new Mock<IAppDataFolderEnumerator>();
+        var mockMatcher = new Mock<IOrphanMatcher>();
+
+        var scanner = new OrphanScanner(mockRegistry.Object, mockEnumerator.Object, mockMatcher.Object);
+
+        // Act
+        var result = scanner.ScanForApp(appName!);
+
+        // Assert
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public void ScanForApp_NoMatchingFolders_ReturnsEmpty()
+    {
+        // Arrange: folders that don't match the queried app
+        var mockRegistry = new Mock<IRegistryReader>();
+        var mockEnumerator = new Mock<IAppDataFolderEnumerator>();
+        var mockMatcher = new Mock<IOrphanMatcher>();
+
+        var folders = new List<AppDataFolder>
+        {
+            new()
+            {
+                FullPath = @"C:\Users\Test\AppData\Local\Google Chrome",
+                Name = "Google Chrome",
+                Location = AppDataLocation.LocalAppData,
+                SizeBytes = 1_000_000,
+                LastWriteTimeUtc = DateTime.UtcNow
+            }
+        };
+
+        mockEnumerator.Setup(e => e.EnumerateFolders()).Returns(folders);
+
+        var scanner = new OrphanScanner(mockRegistry.Object, mockEnumerator.Object, mockMatcher.Object);
+
+        // Act
+        var result = scanner.ScanForApp("Spotify");
+
+        // Assert
+        Assert.Empty(result);
+    }
+
+    #endregion
 }

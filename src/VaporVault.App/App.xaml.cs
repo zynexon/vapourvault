@@ -92,14 +92,16 @@ public partial class App : Application
         _trayIconService = new TrayIconService();
         _trayIconService.OpenRequested += () =>
         {
+            Log("TrayIcon: OpenRequested fired");
             _window?.DispatcherQueue.TryEnqueue(() =>
             {
+                Log("TrayIcon: Dispatched to UI thread, calling ShowAndBringToFront");
                 _window?.ShowAndBringToFront();
             });
         };
         _trayIconService.ExitRequested += () =>
         {
-            Log("ExitRequested from tray");
+            Log("TrayIcon: ExitRequested fired");
             StopLiveInterception();
             _notificationService?.Stop();
             Microsoft.UI.Xaml.Application.Current.Exit();
@@ -108,8 +110,10 @@ public partial class App : Application
         
         NotificationService.ToastClicked += () =>
         {
+            Log("Toast: ToastClicked fired");
             _window?.DispatcherQueue.TryEnqueue(() =>
             {
+                Log("Toast: Dispatched to UI thread, calling ShowAndBringToFront");
                 _window?.ShowAndBringToFront();
             });
         };
