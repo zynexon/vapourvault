@@ -1,5 +1,6 @@
 using VaporVault.Core.Data;
 using VaporVault.Core.Models;
+using VaporVault.Core.Quarantine;
 
 namespace VaporVault.Core.Lifecycle;
 
@@ -9,24 +10,27 @@ namespace VaporVault.Core.Lifecycle;
 /// 1. Read manifest.json from quarantine folder
 /// 2. Decompress if needed
 /// 3. Move files back to original paths
-/// 4. Optionally offer to reapply .reg file (never automatic)
-/// 5. Update quarantine index
+/// 4. v3: Re-enable any scheduled tasks/services that were disabled
+/// 5. Optionally offer to reapply .reg file (never automatic)
+/// 6. Update quarantine index
 /// </summary>
 public class ReviveService
 {
-    private readonly Quarantine.CompressionService _compressionService;
-    private readonly Quarantine.FileMover _fileMover;
-    private readonly Quarantine.ManifestWriter _manifestWriter;
+    private readonly CompressionService _compressionService;
+    private readonly FileMover _fileMover;
+    private readonly ManifestWriter _manifestWriter;
     private readonly QuarantineIndex _quarantineIndex;
+    private readonly AppTraceDisabler _traceDisabler;
 
     public ReviveService() : this(new QuarantineIndex()) { }
 
     public ReviveService(QuarantineIndex quarantineIndex)
     {
-        _compressionService = new Quarantine.CompressionService();
-        _fileMover = new Quarantine.FileMover();
-        _manifestWriter = new Quarantine.ManifestWriter();
+        _compressionService = new CompressionService();
+        _fileMover = new FileMover();
+        _manifestWriter = new ManifestWriter();
         _quarantineIndex = quarantineIndex;
+        _traceDisabler = new AppTraceDisabler();
     }
 
     /// <summary>
@@ -36,6 +40,7 @@ public class ReviveService
         bool Success,
         string AppName,
         int FilesRestored,
+        int TracesReEnabled,
         bool RegistryFileAvailable,
         string? RegistryFilePath,
         string? ErrorMessage);
@@ -53,11 +58,11 @@ public class ReviveService
     {
         var entry = _quarantineIndex.GetById(quarantineId);
         if (entry == null)
-            return new ReviveResult(false, "", 0, false, null, $"Quarantine entry not found: {quarantineId}");
+            return new ReviveResult(false, "", 0, 0, false, null, $"Quarantine entry not found: {quarantineId}");
 
         var manifest = _manifestWriter.ReadManifest(entry.QuarantineFolderPath);
         if (manifest == null)
-            return new ReviveResult(false, entry.AppName, 0, false, null, "manifest.json not found or corrupted.");
+            return new ReviveResult(false, entry.AppName, 0, 0, false, null, "manifest.json not found or corrupted.");
 
         // Step 1: Decompress if needed
         if (manifest.Compressed)
@@ -90,10 +95,25 @@ public class ReviveService
             totalFilesRestored += moveResult.FilesMoved;
         }
 
-        // Step 3: Update index
+        // Step 3: v3 — Re-enable any scheduled tasks/services that were disabled
+        int tracesReEnabled = 0;
+        if (manifest.AdditionalTraces != null)
+        {
+            try
+            {
+                tracesReEnabled = _traceDisabler.ReEnableTraces(manifest.AdditionalTraces);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"ReviveService: Trace re-enable failed: {ex.Message}");
+            }
+        }
+
+        // Step 4: Update index
         _quarantineIndex.Update(quarantineId, e => e.Status = QuarantineStatus.Revived);
 
-        // Step 4: Clean up quarantine folder (best effort)
+        // Step 5: Clean up quarantine folder (best effort)
         try
         {
             if (Directory.Exists(entry.QuarantineFolderPath))
@@ -114,8 +134,10 @@ public class ReviveService
             Success: true,
             AppName: manifest.AppName,
             FilesRestored: totalFilesRestored,
+            TracesReEnabled: tracesReEnabled,
             RegistryFileAvailable: regFileExists,
             RegistryFilePath: regFileExists ? regFilePath : null,
             ErrorMessage: null);
     }
 }
+

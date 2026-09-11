@@ -9,7 +9,7 @@ namespace VaporVault.Core.Models;
 public sealed class QuarantineManifest
 {
     [JsonPropertyName("schemaVersion")]
-    public int SchemaVersion { get; set; } = 1;
+    public int SchemaVersion { get; set; } = 2;
 
     [JsonPropertyName("appName")]
     public required string AppName { get; set; }
@@ -43,6 +43,13 @@ public sealed class QuarantineManifest
 
     [JsonPropertyName("restoreBat")]
     public string RestoreBat { get; set; } = "restore.bat";
+
+    /// <summary>
+    /// v3: Additional traces found during quarantine — scheduled tasks, services,
+    /// file associations, and dead uninstall entries. Null for v1 manifests.
+    /// </summary>
+    [JsonPropertyName("additionalTraces")]
+    public AppTraceResult? AdditionalTraces { get; set; }
 }
 
 /// <summary>

@@ -1,4 +1,5 @@
 using VaporVault.Core.Data;
+using VaporVault.Core.Detection;
 using VaporVault.Core.Interop;
 using VaporVault.Core.Models;
 
@@ -13,7 +14,8 @@ namespace VaporVault.Core.Quarantine;
 /// 5. Write manifest.json
 /// 6. Generate restore.bat
 /// 7. Export HKCU\Software\[App] registry key
-/// 8. Update quarantine index
+/// 8. v3: Detect additional traces (scheduled tasks, services, associations)
+/// 9. Update quarantine index
 /// </summary>
 public class QuarantineManager
 {
@@ -24,6 +26,8 @@ public class QuarantineManager
     private readonly RestoreBatGenerator _restoreBatGenerator;
     private readonly RegistryExporter _registryExporter;
     private readonly QuarantineIndex _quarantineIndex;
+    private readonly IAppTraceDetector _traceDetector;
+    private readonly AppTraceDisabler _traceDisabler;
 
     /// <summary>
     /// Quarantine hold period in days.
@@ -44,6 +48,8 @@ public class QuarantineManager
         _restoreBatGenerator = new RestoreBatGenerator();
         _registryExporter = new RegistryExporter();
         _quarantineIndex = new QuarantineIndex();
+        _traceDetector = new AppTraceDetector();
+        _traceDisabler = new AppTraceDisabler();
     }
 
     /// <summary>
@@ -60,6 +66,8 @@ public class QuarantineManager
         _restoreBatGenerator = new RestoreBatGenerator();
         _registryExporter = new RegistryExporter();
         _quarantineIndex = quarantineIndex;
+        _traceDetector = new AppTraceDetector();
+        _traceDisabler = new AppTraceDisabler();
     }
 
     /// <summary>
@@ -193,6 +201,21 @@ public class QuarantineManager
         // Export registry key (best-effort, not a failure if it doesn't exist)
         manifest.RegistryExport = _registryExporter.ExportRegistryKey(orphan.AppName, quarantineFolderPath);
 
+        // v3: Detect additional traces (scheduled tasks, services, associations, dead entries)
+        try
+        {
+            var traces = _traceDetector.DetectTraces(orphan.AppName);
+            if (traces.HasAnyTraces)
+            {
+                manifest.AdditionalTraces = traces;
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"QuarantineManager: Trace detection failed for '{orphan.AppName}': {ex.Message}");
+        }
+
         // Write manifest
         _manifestWriter.WriteManifest(quarantineFolderPath, manifest);
 
@@ -223,6 +246,42 @@ public class QuarantineManager
             ErrorMessage: pendingRebootFiles.Count > 0
                 ? $"{pendingRebootFiles.Count} file(s) will move on next restart."
                 : null);
+    }
+
+    /// <summary>
+    /// v3: Disables detected traces (scheduled tasks, services) after user confirmation.
+    /// Call this after Quarantine() completes, if the user agrees to disable.
+    /// Updates the manifest in place.
+    /// </summary>
+    /// <param name="quarantineFolderPath">Path to the quarantine folder.</param>
+    public void DisableDetectedTraces(string quarantineFolderPath)
+    {
+        var manifest = _manifestWriter.ReadManifest(quarantineFolderPath);
+        if (manifest?.AdditionalTraces == null) return;
+
+        _traceDisabler.DisableTraces(manifest.AdditionalTraces);
+
+        // Re-write manifest with updated StillActive/DisableFailed flags
+        _manifestWriter.WriteManifest(quarantineFolderPath, manifest);
+    }
+
+    /// <summary>
+    /// v3: Checks whether quarantining an app of the given size would exceed the vault cap.
+    /// </summary>
+    /// <param name="incomingSizeBytes">Size of the app about to be quarantined.</param>
+    /// <returns>Cap check result with current usage, cap, and oldest entry if applicable.</returns>
+    public VaultCapEnforcer.CapCheckResult CheckVaultCap(long incomingSizeBytes)
+    {
+        var enforcer = new VaultCapEnforcer(_quarantineIndex);
+        return enforcer.CheckCap(incomingSizeBytes);
+    }
+
+    /// <summary>
+    /// v3: Returns the total size of all active quarantine entries.
+    /// </summary>
+    public long GetTotalActiveVaultSize()
+    {
+        return _quarantineIndex.GetActive().Sum(e => e.TotalSizeBytes);
     }
 
     /// <summary>

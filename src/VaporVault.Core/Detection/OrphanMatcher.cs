@@ -153,7 +153,7 @@ public class OrphanMatcher : IOrphanMatcher
             // Check install location — if the folder path is within the install location
             if (!string.IsNullOrEmpty(app.InstallLocation))
             {
-                var installLower = app.InstallLocation.ToLowerInvariant();
+                var installLower = app.InstallLocation.ToLowerInvariant().TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                 if (installLower.Contains(folderLower) || folderLower.Contains(Path.GetFileName(installLower)))
                     return true;
             }

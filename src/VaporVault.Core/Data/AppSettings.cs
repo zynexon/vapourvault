@@ -37,6 +37,12 @@ public sealed class AppSettings
     public bool CloseToTray { get; set; } = true;
 
     /// <summary>
+    /// v3: Maximum total size (in bytes) of all active quarantine entries.
+    /// Default 15 GB. Set to 0 to disable the cap.
+    /// </summary>
+    public long MaxQuarantineSizeBytes { get; set; } = 15L * 1024 * 1024 * 1024;
+
+    /// <summary>
     /// Loads settings from disk. Returns defaults if the file doesn't exist or is corrupt.
     /// </summary>
     public static AppSettings Load()
