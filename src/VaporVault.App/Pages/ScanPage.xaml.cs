@@ -125,8 +125,144 @@ public sealed partial class ScanPage : Page
                 return;
         }
 
-        // ── Step 2: Perform the quarantine ──
+        // ── Step 2: Check vault cap BEFORE quarantining (v3) ──
+        var quarantineManager = new QuarantineManager();
+        var capCheck = quarantineManager.CheckVaultCap(orphan.TotalSizeBytes);
+
+        if (capCheck.WouldExceedCap)
+        {
+            var capDialog = new ContentDialog
+            {
+                XamlRoot = this.XamlRoot,
+                Title = "Vault storage cap exceeded",
+                Content = new StackPanel
+                {
+                    Spacing = 8,
+                    Children =
+                    {
+                        new TextBlock
+                        {
+                            Text = $"Quarantining {orphan.AppName} ({FormatSize(orphan.TotalSizeBytes)}) would exceed your vault cap.",
+                            TextWrapping = TextWrapping.Wrap
+                        },
+                        new TextBlock
+                        {
+                            Text = $"Current usage: {FormatSize(capCheck.CurrentUsageBytes)} / {FormatSize(capCheck.CapBytes)}\n" +
+                                   $"Space needed: {FormatSize(capCheck.SpaceNeededBytes)}",
+                            FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"),
+                            TextWrapping = TextWrapping.Wrap
+                        },
+                        new TextBlock
+                        {
+                            Text = capCheck.OldestEntry != null
+                                ? $"Tip: You can free space by deleting the oldest entry \"{capCheck.OldestEntry.AppName}\" from the Vault page."
+                                : "Tip: Delete old entries from the Vault page or increase the cap in Settings.",
+                            TextWrapping = TextWrapping.Wrap,
+                            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]
+                        }
+                    }
+                },
+                PrimaryButtonText = "Quarantine Anyway",
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Close
+            };
+
+            var capResult = await capDialog.ShowAsync();
+            if (capResult != ContentDialogResult.Primary)
+                return;
+        }
+
+        // ── Step 3: Perform the quarantine ──
         await ViewModel.QuarantineCommand.ExecuteAsync(orphan);
+
+        // ── Step 4: Check for additional traces and offer to disable (v3) ──
+        try
+        {
+            // Re-read manifest to get the AdditionalTraces that were detected during quarantine
+            var manifestWriter = new VaporVault.Core.Quarantine.ManifestWriter();
+
+            // Find the quarantine folder — it's the most recent entry for this app
+            var index = new VaporVault.Core.Data.QuarantineIndex();
+            var latestEntry = index.GetActive()
+                .Where(e => e.AppName == orphan.AppName)
+                .OrderByDescending(e => e.QuarantinedAt)
+                .FirstOrDefault();
+
+            if (latestEntry != null)
+            {
+                var manifest = manifestWriter.ReadManifest(latestEntry.QuarantineFolderPath);
+
+                if (manifest?.AdditionalTraces?.HasAnyTraces == true)
+                {
+                    var traces = manifest.AdditionalTraces;
+                    var traceLines = new List<string>();
+
+                    foreach (var task in traces.ScheduledTasks)
+                        traceLines.Add($"📅 Scheduled task: {task.Name}");
+                    foreach (var svc in traces.Services)
+                        traceLines.Add($"⚙️ Service: {svc.DisplayName}");
+                    foreach (var assoc in traces.FileAssociations)
+                        traceLines.Add($"📎 File association: {assoc.Extension} → {assoc.HandlerType}");
+                    foreach (var dead in traces.DeadUninstallEntries)
+                        traceLines.Add($"🗑️ Dead uninstall entry: {dead.DisplayName}");
+
+                    var traceText = string.Join("\n", traceLines);
+
+                    var traceDialog = new ContentDialog
+                    {
+                        XamlRoot = this.XamlRoot,
+                        Title = $"Additional traces found for {orphan.AppName}",
+                        Content = new StackPanel
+                        {
+                            Spacing = 8,
+                            Children =
+                            {
+                                new TextBlock
+                                {
+                                    Text = "VaporVault found leftover scheduled tasks, services, or registry entries that belong to this app:",
+                                    TextWrapping = TextWrapping.Wrap
+                                },
+                                new ScrollViewer
+                                {
+                                    MaxHeight = 250,
+                                    Content = new TextBlock
+                                    {
+                                        Text = traceText,
+                                        TextWrapping = TextWrapping.Wrap,
+                                        IsTextSelectionEnabled = true
+                                    }
+                                },
+                                new TextBlock
+                                {
+                                    Text = "Would you like to disable them? Tasks will be disabled (not deleted) and services will be stopped.",
+                                    TextWrapping = TextWrapping.Wrap,
+                                    Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]
+                                }
+                            }
+                        },
+                        PrimaryButtonText = "Disable All",
+                        CloseButtonText = "Skip",
+                        DefaultButton = ContentDialogButton.Primary
+                    };
+
+                    var traceResult = await traceDialog.ShowAsync();
+
+                    if (traceResult == ContentDialogResult.Primary)
+                    {
+                        await Task.Run(() =>
+                        {
+                            quarantineManager.DisableDetectedTraces(latestEntry.QuarantineFolderPath);
+                        });
+
+                        ViewModel.StatusMessage += " Additional traces disabled.";
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Trace dialog error: {ex.Message}");
+        }
     }
 
     private async void ShowPathsButton_Click(object sender, RoutedEventArgs e)

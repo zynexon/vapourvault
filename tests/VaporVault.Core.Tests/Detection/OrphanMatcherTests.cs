@@ -243,4 +243,159 @@ public class OrphanMatcherTests
     }
 
     #endregion
+
+    #region Alias Matching Tests
+
+    [Fact]
+    public void AliasMatch_NpmCacheFolder_WithNodeJsInstalled_NotOrphaned()
+    {
+        // npm-cache should be recognized as belonging to Node.js via alias table
+        var apps = new[] { MakeApp("Node.js") };
+        var folders = new[] { MakeFolder("npm-cache") };
+
+        var orphans = _matcher.FindOrphans(apps, folders);
+
+        Assert.Empty(orphans);
+    }
+
+    [Fact]
+    public void AliasMatch_NpmCacheFolder_WithNodeJsAbsent_IsOrphaned()
+    {
+        // Without Node.js installed, npm-cache IS orphaned...
+        // BUT npm-cache is excluded by the dev-tool prefix exclusion (Part 2), so
+        // it won't appear in results either way. Test the alias matching directly.
+        var apps = new[] { MakeApp("Spotify") };
+        var appNameSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Spotify" };
+        var appTokens = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "spotify" };
+
+        var result = OrphanMatcher.IsMatchedByInstalledApp("npm-cache", apps, appNameSet, appTokens);
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void AliasMatch_NpmFolder_WithNodeJsInstalled_MatchedByAlias()
+    {
+        var apps = new[] { MakeApp("Node.js") };
+        var appNameSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Node.js" };
+        var appTokens = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "node" };
+
+        var result = OrphanMatcher.IsMatchedByAlias("npm", appNameSet, apps);
+
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void AliasMatch_PipFolder_WithPythonInstalled_MatchedByAlias()
+    {
+        var apps = new[] { MakeApp("Python 3.12.0") };
+        var appNameSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Python 3.12.0" };
+
+        // Alias for "pip" includes "python" — prefix match against "Python 3.12.0"
+        var result = OrphanMatcher.IsMatchedByAlias("pip", appNameSet, apps);
+
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void AliasMatch_NpmCacheSuffix_PrefixMatchHitsAlias()
+    {
+        // "npm-cache-2024" should prefix-match to "npm-cache" alias
+        var apps = new[] { MakeApp("Node.js") };
+        var appNameSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Node.js" };
+
+        var result = OrphanMatcher.IsMatchedByAlias("npm-cache-2024", appNameSet, apps);
+
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void AliasMatch_FolderNotInAliasTable_Unaffected()
+    {
+        // A folder not in the alias table should return false from alias matching
+        var apps = new[] { MakeApp("Spotify") };
+        var appNameSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Spotify" };
+
+        var result = OrphanMatcher.IsMatchedByAlias("OBSStudio", appNameSet, apps);
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void AliasMatch_NuGetFolder_WithVisualStudioInstalled_MatchedByAlias()
+    {
+        var apps = new[] { MakeApp("Visual Studio Professional 2022") };
+        var appNameSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Visual Studio Professional 2022" };
+
+        var result = OrphanMatcher.IsMatchedByAlias("nuget", appNameSet, apps);
+
+        Assert.True(result);
+    }
+
+    #endregion
+
+    #region Dev-Tool Prefix Exclusion Tests (Part 2)
+
+    [Theory]
+    [InlineData("npm-cache")]
+    [InlineData("npm-cache-folder")]
+    [InlineData("npm_global")]
+    [InlineData("pip-cache")]
+    [InlineData("yarn-cache")]
+    [InlineData("nuget-packages")]
+    [InlineData("dotnet-tools")]
+    public void IsExcluded_DevToolPrefixVariants_AreExcluded(string folderName)
+    {
+        Assert.True(OrphanMatcher.IsExcluded(folderName));
+    }
+
+    [Theory]
+    [InlineData("npmapp")]        // No separator after prefix — not a dev-tool variant
+    [InlineData("pipelines")]     // "pip" is prefix but "pipelines" has no separator
+    [InlineData("yarnball")]      // No separator
+    public void IsExcluded_NonDevToolPrefixMatches_NotExcluded(string folderName)
+    {
+        Assert.False(OrphanMatcher.IsExcluded(folderName));
+    }
+
+    [Fact]
+    public void FindOrphans_NpmCacheFolder_ExcludedByPrefix_NeverOrphaned()
+    {
+        // Even with no installed apps, npm-cache should be excluded by the prefix rule
+        var apps = Array.Empty<InstalledApp>();
+        var folders = new[] { MakeFolder("npm-cache") };
+
+        var orphans = _matcher.FindOrphans(apps, folders);
+
+        Assert.Empty(orphans);
+    }
+
+    #endregion
+
+    #region ResolveAliases Tests
+
+    [Fact]
+    public void ResolveAliases_DirectMatch_ReturnsAliases()
+    {
+        var result = OrphanMatcher.ResolveAliases("npm");
+        Assert.NotNull(result);
+        Assert.Contains("node.js", result);
+    }
+
+    [Fact]
+    public void ResolveAliases_PrefixMatch_ReturnsAliases()
+    {
+        var result = OrphanMatcher.ResolveAliases("npm-cache-2024");
+        Assert.NotNull(result);
+        Assert.Contains("node.js", result);
+    }
+
+    [Fact]
+    public void ResolveAliases_NoMatch_ReturnsNull()
+    {
+        var result = OrphanMatcher.ResolveAliases("SomeRandomFolder");
+        Assert.Null(result);
+    }
+
+    #endregion
 }

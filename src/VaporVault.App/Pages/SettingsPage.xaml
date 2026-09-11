@@ -110,6 +110,56 @@
                 </Grid>
             </StackPanel>
 
+            <!-- Vault Storage section (v3) -->
+            <TextBlock
+                Text="Vault Storage"
+                Style="{StaticResource SubtitleTextBlockStyle}"
+                Margin="0,16,0,4" />
+
+            <StackPanel
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                CornerRadius="8"
+                Padding="16"
+                Spacing="16"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1">
+
+                <StackPanel Spacing="2">
+                    <TextBlock Text="Maximum vault size" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    <TextBlock
+                        Text="Limit the total disk space used by quarantined files. VaporVault will warn you before exceeding this cap."
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Slider
+                        x:Name="VaultCapSlider"
+                        Grid.Column="0"
+                        Minimum="0"
+                        Maximum="50"
+                        StepFrequency="1"
+                        TickFrequency="5"
+                        TickPlacement="Outside"
+                        ValueChanged="VaultCapSlider_ValueChanged"
+                        VerticalAlignment="Center" />
+                    <TextBlock
+                        x:Name="VaultCapLabel"
+                        Grid.Column="1"
+                        Text="15 GB"
+                        Style="{StaticResource BodyStrongTextBlockStyle}"
+                        VerticalAlignment="Center"
+                        Margin="16,0,0,0"
+                        MinWidth="90"
+                        TextAlignment="Right" />
+                </Grid>
+            </StackPanel>
+
             <!-- About section -->
             <TextBlock
                 Text="About"
@@ -126,7 +176,7 @@
 
                 <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}">
                     <Run Text="VaporVault" />
-                    <Run Text="v2.0" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <Run Text="v3.0" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 </TextBlock>
                 <TextBlock
                     Text="Automatically detects and quarantines leftover files from uninstalled applications."

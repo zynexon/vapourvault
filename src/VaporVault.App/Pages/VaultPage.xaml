@@ -30,6 +30,29 @@
             <TextBlock Text="Apps held in quarantine. Files are automatically deleted after 30 days if untouched."
                        Style="{StaticResource BodyTextBlockStyle}"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+
+            <!-- v3: Vault usage bar -->
+            <Grid Margin="0,8,0,0" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ProgressBar
+                    x:Name="VaultUsageBar"
+                    Grid.Column="0"
+                    Minimum="0"
+                    Maximum="100"
+                    Value="{x:Bind ViewModel.VaultUsagePercent, Mode=OneWay}"
+                    Height="8"
+                    CornerRadius="4"
+                    VerticalAlignment="Center" />
+                <TextBlock
+                    Grid.Column="1"
+                    Text="{x:Bind ViewModel.VaultUsageSummary, Mode=OneWay}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    VerticalAlignment="Center" />
+            </Grid>
         </StackPanel>
 
         <!-- Status -->
