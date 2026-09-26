@@ -26,7 +26,7 @@ public sealed class AppSettings
 
     /// <summary>
     /// Whether VaporVault starts automatically with Windows.
-    /// Implemented via HKCU\Software\Microsoft\Windows\CurrentVersion\Run.
+    /// Implemented via the MSIX StartupTask API (uap5:StartupTask in manifest).
     /// </summary>
     public bool RunAtStartup { get; set; }
 

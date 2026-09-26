@@ -2,6 +2,7 @@ using H.NotifyIcon;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using VaporVault.Core.Data;
+using Windows.ApplicationModel;
 
 namespace VaporVault_App.Services;
 
@@ -33,7 +34,11 @@ public sealed class TrayIconService : IDisposable
     /// Creates and shows the system tray icon with a context menu.
     /// Must be called from the UI thread.
     /// </summary>
-    public void Show()
+    /// <param name="isStartupEnabled">
+    /// Current startup registration state, used to set the initial toggle position.
+    /// Obtained via <see cref="StartupManager.GetStateAsync"/> before calling this method.
+    /// </param>
+    public void Show(bool isStartupEnabled)
     {
         if (_taskbarIcon != null) return;
 
@@ -53,14 +58,26 @@ public sealed class TrayIconService : IDisposable
         var startupItem = new ToggleMenuFlyoutItem
         {
             Text = "Run at Startup",
-            IsChecked = StartupManager.IsEnabled
+            IsChecked = isStartupEnabled
         };
-        startupItem.Click += (_, _) =>
+        startupItem.Click += async (_, _) =>
         {
             if (startupItem.IsChecked)
-                StartupManager.Enable();
+            {
+                var result = await StartupManager.EnableAsync();
+                if (!StartupManager.IsEnabled(result))
+                {
+                    // Enable failed (disabled by user in Task Manager, or by policy)
+                    // — revert the toggle so the UI doesn't lie
+                    startupItem.IsChecked = false;
+                    System.Diagnostics.Debug.WriteLine(
+                        $"TrayIcon: Startup enable failed, state = {result}");
+                }
+            }
             else
-                StartupManager.Disable();
+            {
+                await StartupManager.DisableAsync();
+            }
 
             var settings = AppSettings.Load();
             settings.RunAtStartup = startupItem.IsChecked;

@@ -15,6 +15,7 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="48" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -30,9 +31,18 @@
             </TitleBar.IconSource>
         </TitleBar>
 
+        <!-- v4: Update available banner (hidden by default) -->
+        <InfoBar
+            x:Name="UpdateBanner"
+            Grid.Row="1"
+            IsOpen="False"
+            Severity="Informational"
+            IsClosable="True"
+            Margin="12,4,12,4" />
+
         <NavigationView
             x:Name="NavView"
-            Grid.Row="1"
+            Grid.Row="2"
             IsBackButtonVisible="Collapsed"
             IsPaneToggleButtonVisible="False"
             IsSettingsVisible="True"

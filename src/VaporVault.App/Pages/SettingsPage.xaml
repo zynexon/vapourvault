@@ -108,6 +108,13 @@
                         Toggled="RunAtStartupToggle_Toggled"
                         VerticalAlignment="Center" />
                 </Grid>
+
+                <InfoBar
+                    x:Name="StartupInfoBar"
+                    IsOpen="False"
+                    Severity="Warning"
+                    IsClosable="False"
+                    Margin="0,8,0,0" />
             </StackPanel>
 
             <!-- Vault Storage section (v3) -->
@@ -176,7 +183,7 @@
 
                 <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}">
                     <Run Text="VaporVault" />
-                    <Run Text="v3.0" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <Run Text="v4.0" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 </TextBlock>
                 <TextBlock
                     Text="Automatically detects and quarantines leftover files from uninstalled applications."

@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using VaporVault.Core.Data;
 using VaporVault_App.Services;
+using Windows.ApplicationModel;
 
 namespace VaporVault_App.Pages;
 
@@ -18,7 +19,7 @@ public sealed partial class SettingsPage : Page
         InitializeComponent();
     }
 
-    private void Page_Loaded(object sender, RoutedEventArgs e)
+    private async void Page_Loaded(object sender, RoutedEventArgs e)
     {
         _isLoading = true;
 
@@ -27,7 +28,11 @@ public sealed partial class SettingsPage : Page
         LiveInterceptionToggle.IsOn = _settings.LiveInterceptionEnabled;
         CloseToTrayToggle.IsOn = _settings.CloseToTray;
         CloseToTrayToggle.IsEnabled = _settings.LiveInterceptionEnabled;
-        RunAtStartupToggle.IsOn = StartupManager.IsEnabled;
+
+        // Query the actual MSIX StartupTask state from Windows
+        var startupState = await StartupManager.GetStateAsync();
+        RunAtStartupToggle.IsOn = StartupManager.IsEnabled(startupState);
+        UpdateStartupStatus(startupState);
 
         // Vault cap: convert bytes to GB for the slider
         if (_settings.MaxQuarantineSizeBytes <= 0)
@@ -74,17 +79,45 @@ public sealed partial class SettingsPage : Page
         _settings.Save();
     }
 
-    private void RunAtStartupToggle_Toggled(object sender, RoutedEventArgs e)
+    private async void RunAtStartupToggle_Toggled(object sender, RoutedEventArgs e)
     {
         if (_isLoading) return;
 
         if (RunAtStartupToggle.IsOn)
-            StartupManager.Enable();
+        {
+            var result = await StartupManager.EnableAsync();
+            if (!StartupManager.IsEnabled(result))
+            {
+                // Enable failed — revert the toggle without re-firing this handler
+                _isLoading = true;
+                RunAtStartupToggle.IsOn = false;
+                _isLoading = false;
+            }
+            UpdateStartupStatus(result);
+        }
         else
-            StartupManager.Disable();
+        {
+            await StartupManager.DisableAsync();
+            UpdateStartupStatus(StartupTaskState.Disabled);
+        }
 
         _settings.RunAtStartup = RunAtStartupToggle.IsOn;
         _settings.Save();
+    }
+
+    /// <summary>
+    /// Shows or hides the startup status InfoBar based on the StartupTask state.
+    /// Surfaces DisabledByUser/DisabledByPolicy so the user knows why
+    /// the toggle won't stick — a state the old registry approach never exposed.
+    /// </summary>
+    private void UpdateStartupStatus(StartupTaskState state)
+    {
+        var reason = StartupManager.GetDisabledReason(state);
+        StartupInfoBar.IsOpen = reason != null;
+        if (reason != null)
+        {
+            StartupInfoBar.Message = reason;
+        }
     }
 
     private void VaultCapSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)

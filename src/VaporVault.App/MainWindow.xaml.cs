@@ -75,6 +75,28 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Shows a non-blocking banner informing the user that a newer version is available.
+    /// The banner links to the release page, opened in the default browser.
+    /// Called from App.xaml.cs when the UpdateChecker detects a newer version.
+    /// </summary>
+    public void ShowUpdateBanner(string versionString, string releaseUrl)
+    {
+        UpdateBanner.Title = "Update available";
+        UpdateBanner.Message = $"VaporVault {versionString} is available \u2014 click to download.";
+
+        var link = new Microsoft.UI.Xaml.Controls.HyperlinkButton
+        {
+            Content = "View release",
+            NavigateUri = new Uri(releaseUrl)
+        };
+        UpdateBanner.ActionButton = link;
+        UpdateBanner.IsOpen = true;
+
+        System.Diagnostics.Debug.WriteLine(
+            $"MainWindow: Update banner shown for v{versionString} → {releaseUrl}");
+    }
+
     private void TitleBar_PaneToggleRequested(TitleBar sender, object args)
     {
         NavView.IsPaneOpen = !NavView.IsPaneOpen;

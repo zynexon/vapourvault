@@ -48,24 +48,33 @@ public class NotificationService
     /// </summary>
     public void Initialize()
     {
-        try
+        // Under MSIX packaging, the app has a proper identity and
+        // ToastNotificationManager works without manual AUMID registration.
+        // Only register AUMID if running unpackaged (development/debug).
+        if (!IsPackaged())
         {
-            // Register AUMID for unpackaged toast notifications
-            var registryKey = $@"Software\Classes\AppUserModelId\{AppId}";
-            using var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(registryKey);
-            key.SetValue("DisplayName", "VaporVault");
-            
-            var iconPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico"));
-            if (System.IO.File.Exists(iconPath))
+            try
             {
-                key.SetValue("IconUri", iconPath);
+                var registryKey = $@"Software\Classes\AppUserModelId\{AppId}";
+                using var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(registryKey);
+                key.SetValue("DisplayName", "VaporVault");
+
+                var iconPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico"));
+                if (System.IO.File.Exists(iconPath))
+                {
+                    key.SetValue("IconUri", iconPath);
+                }
+
+                App.Log("AUMID registered successfully for Toast Notifications (unpackaged mode).");
             }
-            
-            App.Log("AUMID registered successfully for Toast Notifications.");
+            catch (Exception ex)
+            {
+                App.Log($"Failed to register AUMID: {ex.Message}");
+            }
         }
-        catch (Exception ex)
+        else
         {
-            App.Log($"Failed to register AUMID: {ex.Message}");
+            App.Log("Running as MSIX package — using package identity for Toast Notifications.");
         }
 
         // Process expired entries immediately on startup
@@ -144,8 +153,9 @@ public class NotificationService
     }
 
     /// <summary>
-    /// Shows a Windows toast notification using the raw WinRT API.
-    /// Works in unpackaged apps without COM registration.
+    /// Shows a Windows toast notification.
+    /// Uses the package identity when running as MSIX, falls back to
+    /// explicit AUMID when running unpackaged during development.
     /// </summary>
     private static void ShowToast(string title, string body)
     {
@@ -166,10 +176,15 @@ public class NotificationService
         
         toast.Activated += (sender, args) => ToastClicked?.Invoke();
 
-        // Use the explicit App User Model ID that we registered in Initialize()
         try
         {
-            ToastNotificationManager.CreateToastNotifier(AppId).Show(toast);
+            // Under MSIX, use the parameterless overload (uses package identity).
+            // Unpackaged: use the explicit AUMID registered in Initialize().
+            var notifier = IsPackaged()
+                ? ToastNotificationManager.CreateToastNotifier()
+                : ToastNotificationManager.CreateToastNotifier(AppId);
+
+            notifier.Show(toast);
         }
         catch (Exception ex)
         {
@@ -199,5 +214,21 @@ public class NotificationService
         _expiryTimer?.Stop();
         _expiryTimer?.Dispose();
         _expiryTimer = null;
+    }
+
+    /// <summary>
+    /// Detects whether the app is running as an MSIX package.
+    /// </summary>
+    private static bool IsPackaged()
+    {
+        try
+        {
+            _ = Windows.ApplicationModel.Package.Current;
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

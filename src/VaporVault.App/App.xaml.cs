@@ -13,6 +13,7 @@ public partial class App : Application
 {
     private MainWindow? _window;
     private NotificationService? _notificationService;
+    private UpdateChecker? _updateChecker;
     private UninstallWatcher? _uninstallWatcher;
     private TrayIconService? _trayIconService;
     private OrphanScanner? _scanner;
@@ -53,6 +54,17 @@ public partial class App : Application
         _notificationService = new NotificationService();
         _notificationService.Initialize();
 
+        // v4: Check for updates once per day (non-blocking)
+        _updateChecker = new UpdateChecker();
+        _updateChecker.UpdateAvailable += info =>
+        {
+            _window?.DispatcherQueue.TryEnqueue(() =>
+            {
+                _window?.ShowUpdateBanner(info.VersionString, info.ReleaseUrl);
+            });
+        };
+        _ = _updateChecker.CheckOncePerDayAsync();
+
         // v2: Start live interception pipeline if enabled
         if (settings.LiveInterceptionEnabled)
         {
@@ -69,7 +81,7 @@ public partial class App : Application
     /// 3. If leftovers found → toast notification
     /// 4. TrayIconService provides background presence
     /// </summary>
-    private void StartLiveInterception()
+    private async void StartLiveInterception()
     {
         // Create the targeted scanner (reuses existing detection pipeline)
         _scanner = new OrphanScanner();
@@ -87,6 +99,9 @@ public partial class App : Application
         {
             Log($"Failed to start UninstallWatcher: {ex.Message}");
         }
+
+        // Query startup state before creating the tray icon
+        var startupState = await StartupManager.GetStateAsync();
 
         // Create and show the tray icon
         _trayIconService = new TrayIconService();
@@ -106,7 +121,7 @@ public partial class App : Application
             _notificationService?.Stop();
             Microsoft.UI.Xaml.Application.Current.Exit();
         };
-        _trayIconService.Show();
+        _trayIconService.Show(StartupManager.IsEnabled(startupState));
         
         NotificationService.ToastClicked += () =>
         {

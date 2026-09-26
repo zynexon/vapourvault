@@ -21,6 +21,11 @@ AppPackages/
 BundleArtifacts/
 _pkginfo.txt
 
+# Code signing certificates — NEVER commit these
+certs/
+*.pfx
+*.cer
+
 # Temp files
 *.tmp
 *.bak
